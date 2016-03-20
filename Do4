@@ -1,0 +1,65 @@
+#!/bin/bash
+#set -x
+#
+# Do4
+#
+IN=Choice.3am
+MIN=1
+lim=0
+ONEBY=0
+EXCLUDES=""
+TEMP=$(getopt -o l:r:x:3heid1 --long len:,require:,exclude:,3am,hot,evening,in,day -- "$@")
+eval set -- "$TEMP"
+while true;do
+    case "$1" in
+	-l|--len)
+	    MIN=$2; shift 2 ;;
+	-r|--require)
+	    eval limit$lim=\"$2\"
+	    lim=$((lim+1)); shift 2 ;;
+	-x|--exclude)
+	    EXCLUDES="$EXCLUDES -e $2"; shift 2 ;;
+	-3|--3am)     IN=Choice.3am; shift ;;
+	-h|--hot)     IN=Choice.3am.hot; shift ;;
+	-e|--evening) IN=Choice.evening; shift ;;
+	-i|--in)      IN=Choice.inside; shift ;;
+	-d|--day)     IN=Choice.day; shift ;;
+	-1) ONEBY=1; shift ;;
+	--) shift;break ;;
+	*) "unexpected option \"$1\""
+    esac
+done
+
+LEN=0
+loops=0
+NLIMITS=$lim
+FILE=/tmp/choose
+touch $FILE
+
+while [ "$LEN" -lt "$MIN" ]; do
+    loops=$((loops + 1))
+    ./choices.inc.pl $IN > $FILE
+    LEN=$(wc -l $FILE | cut -d " " -f 1)
+    for (( i=0; i<$NLIMITS; i++ )); do
+	x=`eval echo -n limit$i`
+	x=${!x}
+	rc=$(grep -c "$x" $FILE)
+	if [ "$rc" -eq 0 ]; then
+	    LEN=0
+	    continue
+	fi
+    done
+    if [ -n "$EXCLUDES" ]; then
+	rc=$(grep -c $EXCLUDES $FILE)
+	if [ "$rc" -ne 0 ]; then
+	    LEN=0
+	fi
+    fi
+done
+echo -n "loops:$loops - "
+grep -q "Walk " /tmp/choose && echo PACK || echo no pack
+if [ $ONEBY -eq 1 ]; then
+    ./1by1 $FILE
+else
+    cat $FILE
+fi
